@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name = "conda_kernels",
     license = "BSD",
-    packages=['conda_kernels'],
+    packages=['environment_kernels'],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
