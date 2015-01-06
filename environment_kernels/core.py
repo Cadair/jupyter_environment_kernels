@@ -12,10 +12,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     env_dirs = List()
     def _env_dirs_default(self):
-        return list() # We need to add something here!
+        return [os.path.expanduser('~/.virtualenvs/'), os.path.expanduser('~/.conda/envs/')] # We need to add something here!
     
     def _get_env_paths(self):
-        return [os.path.join(base_dir, '*/bin/ipython') for base_dir in self.env_dirs]
+        return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython') for base_dir in self.env_dirs]
 
     def find_python_paths(self):
         # find a python executeable
@@ -26,7 +26,8 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                 venv_dir = os.path.split(os.path.split(python_exe)[0])[0]
                 venv_name = os.path.split(venv_dir)[1]
                 python_dirs.update({venv_name: venv_dir})
-            
+        
+        print(python_dirs)
         return python_dirs
     
     def venv_kernel_specs(self):
@@ -39,7 +40,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                     "IPython.kernel",
                                     "-f",
                                     "{connection_file}"],
-                           "display_name": "conda ({})".format(venv_name),
+                           "display_name": "Environment ({})".format(venv_name),
                            "env": {}}
 
             kspecs.update({venv_name: KernelSpec(**kspec_dict)})
@@ -49,7 +50,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         """Returns a dict mapping kernel names to resource directories."""
         d = super(EnvironmentKernelSpecManager, self).find_kernel_specs()
         
-        d.update(self.find_kernel_paths())
+        d.update(self.find_python_paths())
         return d
 
     def get_kernel_spec(self, kernel_name):
