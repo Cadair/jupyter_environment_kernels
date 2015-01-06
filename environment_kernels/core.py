@@ -1,34 +1,36 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Nov 18 16:01:32 2014
 
-@author: stuart
-"""
 import os
-import io
 import glob
 
 from IPython.kernel.kernelspec import KernelSpecManager, KernelSpec, NATIVE_KERNEL_NAME, NoSuchKernel
-from IPython.utils.traitlets import Unicode
+from IPython.utils.traitlets import List
 
-class CondaEnvKernelSpecManager(KernelSpecManager):
+__all__ = ['EnvironmentKernelSpecManager']
 
-    virtual_env_root = Unicode()
-    def _virtual_env_root_default(self):
-        return os.path.expanduser('/usr/local/packages6/conda/envs/')
+class EnvironmentKernelSpecManager(KernelSpecManager):
 
-    def find_kernel_paths(self):
+    env_dirs = List()
+    def _env_dirs_default(self):
+        return list() # We need to add something here!
+    
+    def _get_env_paths(self):
+        return [os.path.join(base_dir, '*/bin/ipython') for base_dir in self.env_dirs]
+
+    def find_python_paths(self):
         # find a python executeable
         python_dirs = {}
-        for python_exe in glob.glob(os.path.join(self.virtual_env_root, '*/bin/ipython')):
-            venv_dir = os.path.split(os.path.split(python_exe)[0])[0]
-            venv_name = os.path.split(venv_dir)[1]
-            python_dirs.update({venv_name: venv_dir})
         
+        for env_path in self._get_env_paths():
+            for python_exe in glob.glob(env_path):
+                venv_dir = os.path.split(os.path.split(python_exe)[0])[0]
+                venv_name = os.path.split(venv_dir)[1]
+                python_dirs.update({venv_name: venv_dir})
+            
         return python_dirs
     
     def venv_kernel_specs(self):
-        python_dirs = self.find_kernel_paths()
+        python_dirs = self.find_python_paths()
         kspecs = {}
         for venv_name, venv_dir in python_dirs.items():
             exe_name = os.path.join(venv_dir, 'bin/python')
@@ -45,7 +47,7 @@ class CondaEnvKernelSpecManager(KernelSpecManager):
     
     def find_kernel_specs(self):
         """Returns a dict mapping kernel names to resource directories."""
-        d = super(CondaEnvKernelSpecManager, self).find_kernel_specs()
+        d = super(EnvironmentKernelSpecManager, self).find_kernel_specs()
         
         d.update(self.find_kernel_paths())
         return d
@@ -69,9 +71,3 @@ class CondaEnvKernelSpecManager(KernelSpecManager):
                 return self.venv_kernel_specs()[kernel_name.lower()]
             else:
                 raise NoSuchKernel(kernel_name)
-
-
-
-if __name__ == '__main__':
-    vspec = CondaEnvKernelSpecManager()
-    print(vspec.venv_kernel_specs())

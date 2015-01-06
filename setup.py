@@ -2,7 +2,7 @@ import os
 from setuptools import setup
 
 setup(
-    name = "conda_kernels",
+    name = "environment_kernels",
     license = "BSD",
     packages=['environment_kernels'],
     classifiers=[

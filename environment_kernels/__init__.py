@@ -1,1 +1,1 @@
-from conda_kernels import *
+from .core import *
