@@ -10,12 +10,7 @@ __all__ = ['EnvironmentKernelSpecManager']
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
 
-    env_dirs = List()
-    def _env_dirs_default(self):
-        return [os.path.expanduser('~/.virtualenvs/'),
-                os.path.expanduser('~/.conda/envs/'),
-                os.path.expanduser('/usr/local/packages6/conda/envs/')]
-	 # We need to add something here!
+    env_dirs = List(['~/.conda/envs/', '~/.virtualenvs'], config=True)
     
     def _get_env_paths(self):
         return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython') for base_dir in self.env_dirs]
