@@ -25,7 +25,6 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                 venv_name = os.path.split(venv_dir)[1]
                 python_dirs.update({venv_name: venv_dir})
         
-        print(python_dirs)
         return python_dirs
     
     def venv_kernel_specs(self):
