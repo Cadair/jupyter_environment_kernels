@@ -3,8 +3,8 @@
 import os
 import glob
 
-from IPython.kernel.kernelspec import KernelSpecManager, KernelSpec, NATIVE_KERNEL_NAME, NoSuchKernel
-from IPython.utils.traitlets import List
+from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NATIVE_KERNEL_NAME, NoSuchKernel
+from traitlets import List
 
 __all__ = ['EnvironmentKernelSpecManager']
 
@@ -12,7 +12,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     env_dirs = List()
     def _env_dirs_default(self):
-        return [os.path.expanduser('~/.virtualenvs/'), os.path.expanduser('~/.conda/envs/')] # We need to add something here!
+        return [os.path.expanduser('~/.virtualenvs/'),
+                os.path.expanduser('~/.conda/envs/'),
+                os.path.expanduser('/usr/local/packages6/conda/envs/')]
+	 # We need to add something here!
     
     def _get_env_paths(self):
         return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython') for base_dir in self.env_dirs]
@@ -58,16 +61,9 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         
         Raises :exc:`NoSuchKernel` if the given kernel name is not found.
         """
-        if kernel_name in {'python', NATIVE_KERNEL_NAME}:
-            kspec = KernelSpec(self._native_kernel_resource_dir, **self._native_kernel_dict)
-            print(kspec.to_json())
-            return kspec
-
-        d = self.find_kernel_specs()
         try:
-            resource_dir = d[kernel_name.lower()]
-            return KernelSpec.from_resource_dir(resource_dir)
-        except FileNotFoundError:
+            super(EnvironmentKernelSpecManager, self).get_kernel_spec(kernel_name)
+        except (NoSuchKernel, FileNotFoundError):
             if kernel_name.lower() in self.venv_kernel_specs():
                 return self.venv_kernel_specs()[kernel_name.lower()]
             else:
