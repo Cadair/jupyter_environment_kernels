@@ -15,15 +15,16 @@ to your notebook config file:
 
 or run the notebook with the following argument:
 
-   --NotebookApp.kernel_spec_manager_class='environment_kernels.EnvironmentKernelSpecManager'
+    --NotebookApp.kernel_spec_manager_class='environment_kernels.EnvironmentKernelSpecManager'
+
 
 You can specify which directories to search for kernels by setting the `env_dirs` config:
 
-    --"EnvironmentKernelSpecManager.env_dirs=['/usr/local/packages6/conda/envs/']" 
+    --"EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']" 
 
 or:
 
-    c.EnvironmentKernelSpecManager.env_dirs=['/usr/local/packages6/conda/envs/']
+    c.EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']
 
 
 If you want to you can also make it ignore environments with certain names:
