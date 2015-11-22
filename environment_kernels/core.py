@@ -31,12 +31,11 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     # Take the default home DIR for conda and virtualenv as the default
     _default_dirs = ['~/.conda/envs/', '~/.virtualenvs']
 
-    # Check for the windows specific CONDA_ENVS_PATH variable and add it to the
-    # list if set.
-    if os.environ.get('CONDA_ENVS_PATH', False):
-        _default_dirs.append(os.environ['CONDA_ENVS_PATH'])
+    # Check for the CONDA_ENV_PATH variable and add it to the list if set.
+    if os.environ.get('CONDA_ENV_PATH', False):
+        _default_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[0])
 
-    # If we are running inside conda we can get all the env dirs:
+    # If we are running inside the root conda env can get all the env dirs:
     if HAVE_CONDA:
         _default_dirs += conda.config.envs_dirs
 
