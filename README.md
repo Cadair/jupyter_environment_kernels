@@ -31,7 +31,7 @@ or run the notebook with the following argument:
 ## Search Directories for Environments
 
 The plugin works by searching a set of directories for subdriectories which are
-environments with the following pattern on Linux and OS/X::
+environments with the following pattern on Linux and OS/X:
     
     BASE_DIR/ENV_NAME/bin/ipython
 
@@ -45,12 +45,12 @@ will be imported added to the search path, if the notebook server is run from
 inside a conda environment then the `CONDA_ENV_DIR` variable will be set and
 the section of the path before `/env/` will be added to the search list.
 You can add extra directories to the search path by using the
-`extra_env_dirs` config::
+`extra_env_dirs` config:
 
     c.EnvironmentKernelSpecManager.extra_env_dirs=['/opt/miniconda/envs/']
 
 or all the automatic behavior can be overriddenby setting the `env_dirs`
-config::
+config:
 
     c.EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']
 
