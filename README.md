@@ -28,17 +28,33 @@ or run the notebook with the following argument:
     --NotebookApp.kernel_spec_manager_class='environment_kernels.EnvironmentKernelSpecManager'
 
 
-## Customization
+## Search Directories for Environments
 
-You can specify which directories to search for kernels by setting the 
-`env_dirs` config in the configuration file:
+The plugin works by searching a set of directories for subdriectories which are
+environments with the following pattern on Linux and OS/X::
+    
+    BASE_DIR/ENV_NAME/bin/ipython
+
+and on Windows::
+
+    BASE_DIR\ENV_NAME\Scripts\ipython
+
+The default base directories are `~/.conda/envs`, `~/.virtualenvs` and if the
+jupyter notebook is being run in the root environment `conda.config.envs_dirs` 
+will be imported added to the search path, if the notebook server is run from
+inside a conda environment then the `CONDA_ENV_DIR` variable will be set and
+the section of the path before `/env/` will be added to the search list.
+You can add extra directories to the search path by using the
+`extra_env_dirs` config::
+
+    c.EnvironmentKernelSpecManager.extra_env_dirs=['/opt/miniconda/envs/']
+
+or all the automatic behavior can be overriddenby setting the `env_dirs`
+config::
 
     c.EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']
 
-or by appending the following argument when running a notebook server:
-
-    --"EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']" 
-
+## Limiting Environments
 
 If you want to you can also make it ignore environments with certain names:
 
