@@ -53,7 +53,6 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         Check the name of the environment against the black list and the
         whitelist. If a whitelist is specified only it is checked.
         """
-
         if self.whitelist_envs and envname in self.whitelist_envs:
             return True
         elif self.whitelist_envs:
@@ -61,8 +60,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
         if self.blacklist_envs and envname not in self.blacklist_envs:
             return True
-        else:
+        elif self.blacklist_envs:
             return False
+        else:
+            return True
 
     def _get_env_paths(self):
         if platform.system() == 'Windows':
