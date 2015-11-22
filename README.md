@@ -8,16 +8,18 @@ the `ipython` executeable to check if IPython / Jupyter is installed. If it
 finds the executeable, it will generate a kernel spec for the environment and 
 pass it through to the Notebook.
 
-Install this package in the usual manner then add the following line
-to your notebook config file:
+### Install
+1. `pip install environment_kernels`
+2. Add the following line
+to your notebook [config file](http://jdfreder-notebook.readthedocs.org/en/latest/config.html):
 
-    c.NotebookApp.kernel_spec_manager_class = 'environment_kernels.EnvironmentKernelSpecManager'
+`c.NotebookApp.kernel_spec_manager_class = 'environment_kernels.EnvironmentKernelSpecManager'`
 
 or run the notebook with the following argument:
 
     --NotebookApp.kernel_spec_manager_class='environment_kernels.EnvironmentKernelSpecManager'
 
-
+### Customization
 You can specify which directories to search for kernels by setting the `env_dirs` config:
 
     --"EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']" 
