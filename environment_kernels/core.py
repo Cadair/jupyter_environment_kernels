@@ -19,11 +19,11 @@ except ImportError:
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
     """
-    A Jupyter Kenel manager which dyamically checks for Environments
+    A Jupyter Kernel manager which dyamically checks for Environments
 
     Given a list of base directories, this class searches for the pattern::
 
-        BASE_DIR/NAME/bin/ipython
+        BASE_DIR/NAME/{bin|Skript}/ipython
 
     where NAME is taken to be the name of the environment.
     """
