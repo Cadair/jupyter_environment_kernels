@@ -9,6 +9,13 @@ from traitlets import List
 
 __all__ = ['EnvironmentKernelSpecManager']
 
+try:
+    import conda.config
+    HAVE_CONDA = True
+
+except ImportError:
+    HAVE_CONDA = False
+
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
     """
@@ -28,6 +35,13 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     # list if set.
     if os.environ.get('CONDA_ENVS_PATH', False):
         _default_dirs.append(os.environ['CONDA_ENVS_PATH'])
+
+    # If we are running inside conda we can get all the env dirs:
+    if HAVE_CONDA:
+        _default_dirs += conda.config.envs_dirs
+
+    # Remove any duplicates
+    _default_dirs = list(set(map(os.path.expanduser, _default_dirs)))
 
     env_dirs = List(_default_dirs, config=True)
     blacklist_envs = List([], config=True)
