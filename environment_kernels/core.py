@@ -44,6 +44,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     _default_dirs = list(set(map(os.path.expanduser, _default_dirs)))
 
     env_dirs = List(_default_dirs, config=True)
+    extra_env_dirs = List([], config=True)
     blacklist_envs = List([], config=True)
     whitelist_envs = List([], config=True)
 
@@ -65,11 +66,12 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     def _get_env_paths(self):
         if platform.system() == 'Windows':
-            return [os.path.join(os.path.expanduser(base_dir), '*/Scripts/ipython')
-                    for base_dir in self.env_dirs]
+            search = '*/Scripts/ipython'
         else:
-            return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython')
-                    for base_dir in self.env_dirs]
+            search = '*/bin/ipython'
+
+        return [os.path.join(os.path.expanduser(base_dir), search)
+                for base_dir in self.env_dirs + self.extra_env_dirs]
 
     def find_python_paths(self):
         # find a python executeable
