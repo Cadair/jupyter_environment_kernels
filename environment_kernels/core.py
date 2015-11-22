@@ -2,6 +2,7 @@
 
 import os
 import glob
+import platform
 
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
 from traitlets import List
@@ -49,8 +50,12 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
             return False
 
     def _get_env_paths(self):
-        return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython')
-                for base_dir in self.env_dirs]
+        if platform.system() == 'Windows':
+            return [os.path.join(os.path.expanduser(base_dir), '*/Scripts/ipython')
+                    for base_dir in self.env_dirs]
+        else:
+            return [os.path.join(os.path.expanduser(base_dir), '*/bin/ipython')
+                    for base_dir in self.env_dirs]
 
     def find_python_paths(self):
         # find a python executeable
