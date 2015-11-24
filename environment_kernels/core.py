@@ -99,7 +99,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                            "display_name": "Environment ({})".format(venv_name),
                            "env": {}}
 
-            kspecs.update({venv_name: KernelSpec(**kspec_dict)})
+            kspecs.update({"env_{}".format(venv_name): KernelSpec(**kspec_dict)})
         return kspecs
 
     def find_kernel_specs(self):
