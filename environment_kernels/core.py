@@ -117,7 +117,8 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         try:
             return super(EnvironmentKernelSpecManager, self).get_kernel_spec(kernel_name)
         except (NoSuchKernel, FileNotFoundError):
-            if kernel_name.lower() in self.venv_kernel_specs():
-                return self.venv_kernel_specs()[kernel_name.lower()]
+            venv_kernel_name = "env_{}".format(kernel_name.lower())
+            if venv_kernel_name in self.venv_kernel_specs():
+                return self.venv_kernel_specs()[venv_kernel_name]
             else:
                 raise NoSuchKernel(kernel_name)
