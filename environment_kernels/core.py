@@ -18,6 +18,11 @@ try:
 except ImportError:
     HAVE_CONDA = False
 
+try:
+    FileNotFoundError
+except NameError:
+    #py2
+    FileNotFoundError = IOError
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
     """
