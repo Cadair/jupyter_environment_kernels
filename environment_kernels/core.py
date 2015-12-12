@@ -235,6 +235,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                     "IPython.kernel",
                                     "-f",
                                     "{connection_file}"],
+                           "language": "python", 
                            "display_name": "Environment ({})".format(venv_name),
                            "env": {}}
 
