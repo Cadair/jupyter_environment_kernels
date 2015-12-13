@@ -9,7 +9,7 @@ import platform
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
 from ipykernel.kernelspec import RESOURCES
 
-from traitlets import List
+from traitlets import List, Unicode
 
 __all__ = ['EnvironmentKernelSpecManager']
 
@@ -72,6 +72,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         help="Environments which should be used (overwrites a blacklist)."
     )
 
+    display_name_template = Unicode(
+        u"Environment ({})", config=True,
+        help="Template for the kernel name in the UI. Needs to include {} for the name."
+    )
 
     def __init__(self, *args, **kwargs):
         super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
@@ -246,7 +250,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                     "-f",
                                     "{connection_file}"],
                            "language": "python",
-                           "display_name": "Environment ({})".format(venv_name),
+                           "display_name": self.display_name_template.format(venv_name),
                            "env": {}}
             # This should probably use self.kernel_spec_class instead of the direct class
             kspecs.update({venv_name: KernelSpec(resource_dir=RESOURCES, **kspec_dict)})
