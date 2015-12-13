@@ -7,6 +7,8 @@ import glob
 import platform
 
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
+from ipykernel.kernelspec import RESOURCES
+
 from traitlets import List
 
 __all__ = ['EnvironmentKernelSpecManager']
@@ -61,7 +63,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     )
 
     blacklist_envs = List(
-        ["conda/_build"], config=True,
+        ["conda__build"], config=True,
         help="Environments which should not be used even if a ipykernel exists in it."
     )
 
@@ -186,7 +188,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         paths.extend(self._find_conda_env_paths_from_conda())
         paths = list(set(paths))
 
-        templ = "conda/{}"
+        # can't use '/' as that results in javascript errors :-/
+        # need to use something which matches \w to get logos:
+        # https://github.com/jupyter/notebook/issues/853
+        templ = "conda_{}"
         return self._convert_to_envs(paths, templ)
 
 
@@ -194,7 +199,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         """Returns virtualenv envs as dict of name -> path"""
         paths = self._find_virtualenv_env_path_from_config()
 
-        templ = "virtualenv/{}"
+        templ = "virtualenv_{}"
         return self._convert_to_envs(paths, templ)
 
 
@@ -240,13 +245,24 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                     "IPython.kernel",
                                     "-f",
                                     "{connection_file}"],
-                           "language": "python", 
+                           "language": "python",
                            "display_name": "Environment ({})".format(venv_name),
                            "env": {}}
-
-            kspecs.update({venv_name: KernelSpec(**kspec_dict)})
+            # This should probably use self.kernel_spec_class instead of the direct class
+            kspecs.update({venv_name: KernelSpec(resource_dir=RESOURCES, **kspec_dict)})
         self._build_kernel_specs_cache = kspecs
         return kspecs
+
+    def find_kernel_specs_for_envs(self):
+        """Returns a dict mapping kernel names to resource directories."""
+        # as the envs do not have logos (=resources) included, add in the
+        # normal ones for python
+
+        envs = self.find_envs()
+        ret = {}
+        for name in envs:
+            ret[name] = RESOURCES
+        return ret
 
 
     def find_kernel_specs(self):
@@ -254,9 +270,9 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         # let real installed kernels overwrite envs with the same name:
         # this is the same order as the get_kernel_spec way, which also prefers
         # kernels from the jupyter dir over env kernels.
-        d = self.find_envs()
-        d.update(super(EnvironmentKernelSpecManager, self).find_kernel_specs())
-        return d
+        specs = self.find_kernel_specs_for_envs()
+        specs.update(super(EnvironmentKernelSpecManager, self).find_kernel_specs())
+        return specs
 
 
     def get_kernel_spec(self, kernel_name):
