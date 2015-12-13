@@ -9,7 +9,7 @@ import platform
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
 from ipykernel.kernelspec import RESOURCES
 
-from traitlets import List, Unicode
+from traitlets import List, Unicode, Bool
 
 __all__ = ['EnvironmentKernelSpecManager']
 
@@ -77,6 +77,21 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         help="Template for the kernel name in the UI. Needs to include {} for the name."
     )
 
+    find_conda_envs = Bool(
+        True, config=True,
+        help="Probe for conda environments, including calling conda itself."
+    )
+
+    use_conda_directly = Bool(
+        True, config=True,
+        help="Probe for conda environments by calling conda itself. Only relevant if find_conda_envs is True."
+    )
+
+    find_virtualenv_envs = Bool(
+        True, config=True,
+        help="Probe for virtualenv environments."
+    )
+
     def __init__(self, *args, **kwargs):
         super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
         self.log.info("Using EnvironmentKernelSpecManager...")
@@ -105,7 +120,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
         Returns empty list, if conda couldn't be called.
         """
-        # use the cache, because using conda all the time is slow...
+        # this is expensive, so make it configureable...
+        if not self.use_conda_directly:
+            return []
+        self.log.info("Looking for conda environments be calling conda directly...")
         import subprocess
         import json
         try:
@@ -188,6 +206,9 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     def _find_conda_envs(self):
         """Returns conda envs as dict of name -> path"""
+        if not self.find_conda_envs:
+            return {}
+        self.log.info("Looking for conda environments...")
         paths = self._find_conda_env_path_from_config()
         paths.extend(self._find_conda_env_paths_from_conda())
         paths = list(set(paths))
@@ -201,6 +222,9 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     def _find_virtualenv_envs(self):
         """Returns virtualenv envs as dict of name -> path"""
+        if not self.find_virtualenv_envs:
+            return {}
+        self.log.info("Looking for virtualenv environments...")
         paths = self._find_virtualenv_env_path_from_config()
 
         templ = "virtualenv_{}"
