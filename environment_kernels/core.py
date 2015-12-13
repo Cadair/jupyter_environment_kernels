@@ -69,7 +69,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     whitelist_envs = List(
         [], config=True,
-        help="Environments which should be used (overwrites a blacklist)."
+        help="Environments which should be used, all others are ignored (overwrites blacklist_envs)."
     )
 
     display_name_template = Unicode(
@@ -302,6 +302,13 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         specs.update(super(EnvironmentKernelSpecManager, self).find_kernel_specs())
         return specs
 
+    def get_all_specs(self):
+        """Returns a dict mapping kernel names and resource directories.
+        """
+        # This is new in 4.1 -> https://github.com/jupyter/jupyter_client/pull/93
+        specs = self._build_kernel_specs()
+        specs.update(super(EnvironmentKernelSpecManager, self).get_all_specs())
+        return specs
 
     def get_kernel_spec(self, kernel_name):
         """Returns a :class:`KernelSpec` instance for the given kernel_name.
