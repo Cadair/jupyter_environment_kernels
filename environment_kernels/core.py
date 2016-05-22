@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 
 import os
 import os.path
 from os.path import join as pj
 import glob
 import platform
+import warnings
 
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
 from ipykernel.kernelspec import RESOURCES
+
+from .activate_helper import source_bash, source_zsh, source_cmd, ON_WINDOWS
 
 from traitlets import List, Unicode, Bool
 
@@ -25,6 +29,18 @@ try:
 except NameError:
     #py2
     FileNotFoundError = IOError
+
+
+def _source_env_vars_from_command(args):
+    if ON_WINDOWS:
+        return source_cmd(args)
+    else:
+        # bash is probably installed everywhere... if not...
+        try:
+            return source_bash(args)
+        except:
+            return source_zsh(args)
+
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
     """
@@ -123,7 +139,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         # this is expensive, so make it configureable...
         if not self.use_conda_directly:
             return []
-        self.log.info("Looking for conda environments be calling conda directly...")
+        self.log.info("Looking for conda environments by calling conda directly...")
         import subprocess
         import json
         try:
@@ -205,7 +221,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
 
     def _find_conda_envs(self):
-        """Returns conda envs as dict of name -> path"""
+        """Returns conda envs as dict of name -> (path, environment_vars)"""
         if not self.find_conda_envs:
             return {}
         self.log.info("Looking for conda environments...")
@@ -217,7 +233,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         # need to use something which matches \w to get logos:
         # https://github.com/jupyter/notebook/issues/853
         templ = "conda_{}"
-        return self._convert_to_envs(paths, templ)
+        env_path = self._convert_to_envs(paths, templ)
+        activate = self._get_env_vars_for_conda_env
+        envs = {name : (env_path, activate(env_path)) for name, env_path in env_path.items()}
+        return envs
 
 
     def _find_virtualenv_envs(self):
@@ -228,8 +247,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         paths = self._find_virtualenv_env_path_from_config()
 
         templ = "virtualenv_{}"
-        return self._convert_to_envs(paths, templ)
-
+        env_path = self._convert_to_envs(paths, templ)
+        activate = self._get_env_vars_for_virtualenv_env
+        envs = {name: (env_path, activate(env_path)) for name, env_path in env_path.items()}
+        return envs
 
     def find_envs(self):
         """Returns for all envs as dict of name -> path"""
@@ -248,6 +269,26 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         self._find_envs_cache = envs
         return envs
 
+    def _get_env_vars_for_conda_env(self, env):
+        args = ["activate", env]
+        try:
+            return _source_env_vars_from_command(args)
+        except:
+            # as a fallback, don't activate...
+            self.log.exception("Couldn't get environment variables for commands: %s", args)
+            return {}
+
+    def _get_env_vars_for_virtualenv_env(self, env):
+        if ON_WINDOWS:
+            args = [pj(env, "Shell", "activate")]
+        else:
+            args = [pj(env, "bin", "activate")]
+        try:
+            return _source_env_vars_from_command(args)
+        except:
+            # as a fallback, don't activate...
+            self.log.exception("Couldn't get environment variables for commands: %s", args)
+            return {}
 
     def _build_kernel_specs(self):
         """Returns the dict of name -> kernel_spec for all environments"""
@@ -263,7 +304,8 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         else:
             python_exe_name = "python"
 
-        for venv_name, venv_dir in venv_dirs.items():
+        for venv_name, venv in venv_dirs.items():
+            venv_dir, venv_env_vars = venv
             # conda on windows has python.exe directly in the env
             exe_name = pj(venv_dir, python_exe_name)
             if not os.path.exists(exe_name):
@@ -275,7 +317,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                     "{connection_file}"],
                            "language": "python",
                            "display_name": self.display_name_template.format(venv_name),
-                           "env": {}}
+                           "env": venv_env_vars}
             # This should probably use self.kernel_spec_class instead of the direct class
             kspecs.update({venv_name: KernelSpec(resource_dir=RESOURCES, **kspec_dict)})
         self._build_kernel_specs_cache = kspecs
