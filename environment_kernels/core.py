@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import os
+import os.path
+from os.path import join as pj
 import glob
 import platform
 
 from jupyter_client.kernelspec import KernelSpecManager, KernelSpec, NoSuchKernel
-from traitlets import List
+from ipykernel.kernelspec import RESOURCES
+
+from traitlets import List, Unicode, Bool
 
 __all__ = ['EnvironmentKernelSpecManager']
 
@@ -16,36 +20,82 @@ try:
 except ImportError:
     HAVE_CONDA = False
 
+try:
+    FileNotFoundError
+except NameError:
+    #py2
+    FileNotFoundError = IOError
 
 class EnvironmentKernelSpecManager(KernelSpecManager):
     """
-    A Jupyter Kenel manager which dyamically checks for Environments
+    A Jupyter Kernel manager which dyamically checks for Environments
 
     Given a list of base directories, this class searches for the pattern::
 
-        BASE_DIR/NAME/bin/ipython
+        BASE_DIR/NAME/{bin|Skript}/ipython
 
     where NAME is taken to be the name of the environment.
     """
 
     # Take the default home DIR for conda and virtualenv as the default
-    _default_dirs = ['~/.conda/envs/', '~/.virtualenvs']
+    _default_conda_dirs = ['~/.conda/envs/']
+    _default_virtualenv_dirs = ['~/.virtualenvs']
 
     # Check for the CONDA_ENV_PATH variable and add it to the list if set.
     if os.environ.get('CONDA_ENV_PATH', False):
-        _default_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[0])
+        _default_conda_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[0])
 
     # If we are running inside the root conda env can get all the env dirs:
     if HAVE_CONDA:
-        _default_dirs += conda.config.envs_dirs
+        _default_conda_dirs += conda.config.envs_dirs
 
     # Remove any duplicates
-    _default_dirs = list(set(map(os.path.expanduser, _default_dirs)))
+    _default_conda_dirs = list(set(map(os.path.expanduser, _default_conda_dirs)))
 
-    env_dirs = List(_default_dirs, config=True)
-    extra_env_dirs = List([], config=True)
-    blacklist_envs = List([], config=True)
-    whitelist_envs = List([], config=True)
+    conda_env_dirs = List(
+        _default_conda_dirs, config=True,
+        help="List of directories in which are conda environments."
+    )
+
+    virtualenv_env_dirs = List(
+        _default_virtualenv_dirs, config=True,
+        help="List of directories in which are virtualenv environments."
+    )
+
+    blacklist_envs = List(
+        ["conda__build"], config=True,
+        help="Environments which should not be used even if a ipykernel exists in it."
+    )
+
+    whitelist_envs = List(
+        [], config=True,
+        help="Environments which should be used, all others are ignored (overwrites blacklist_envs)."
+    )
+
+    display_name_template = Unicode(
+        u"Environment ({})", config=True,
+        help="Template for the kernel name in the UI. Needs to include {} for the name."
+    )
+
+    find_conda_envs = Bool(
+        True, config=True,
+        help="Probe for conda environments, including calling conda itself."
+    )
+
+    use_conda_directly = Bool(
+        True, config=True,
+        help="Probe for conda environments by calling conda itself. Only relevant if find_conda_envs is True."
+    )
+
+    find_virtualenv_envs = Bool(
+        True, config=True,
+        help="Probe for virtualenv environments."
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
+        self.log.info("Using EnvironmentKernelSpecManager...")
+
 
     def validate_env(self, envname):
         """
@@ -60,54 +110,205 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         if self.blacklist_envs and envname not in self.blacklist_envs:
             return True
         elif self.blacklist_envs:
+            # If there is just a True, all envs are blacklisted
             return False
         else:
             return True
 
-    def _get_env_paths(self):
-        if platform.system() == 'Windows':
-            search = '*/Scripts/ipython'
+    def _find_conda_env_paths_from_conda(self):
+        """Returns a list of path as given by `conda env list --json`.
+
+        Returns empty list, if conda couldn't be called.
+        """
+        # this is expensive, so make it configureable...
+        if not self.use_conda_directly:
+            return []
+        self.log.info("Looking for conda environments be calling conda directly...")
+        import subprocess
+        import json
+        try:
+            p = subprocess.Popen(
+                ['conda', 'env', 'list', '--json'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE)
+            comm = p.communicate()
+            output = comm[0].decode()
+            if p.returncode != 0 or len(output) == 0:
+                self.log.error("Couldn't call 'conda' to get the environments. "
+                               "Output:\n%s" , str(comm))
+                return []
+        except FileNotFoundError:
+            self.log.error("'conda' not found in path.")
+            return []
+        output = json.loads(output)
+        envs = output["envs"]
+        #self.log.info("Found the following kernels from conda: %s", ", ".join(envs))
+        return envs
+
+
+    def _find_conda_env_path_from_config(self):
+        """Returns a list of env paths as by using the configured conda env basedir"""
+        return self._find_env_paths_in_basedirs(self.conda_env_dirs)
+
+
+    def _find_virtualenv_env_path_from_config(self):
+        """Returns a list of env paths as by using the configured virtualenv basedir"""
+        return self._find_env_paths_in_basedirs(self.virtualenv_env_dirs)
+
+
+    def _validate_ipython_path(self, env_path):
+        """Returns whether a ipython executable is in that env"""
+        # We validate a dir if it has a ipython executable in one of the dirs
+        # which ends up in PATH. The proper way would probably use the ipykernel
+        # as ipython itself is no garantee that the env can also be used as a kernel
+        # but it is close...
+        ipython = "ipython.exe" if platform.system() == "Windows" else "ipython"
+        for search_path in ['bin', 'Scripts']:
+            ipython_path = pj(env_path, search_path, ipython)
+            if os.path.exists(ipython_path):
+                return True
+        return False
+
+
+    def _find_env_paths_in_basedirs(self, base_dirs):
+        """Returns all potential envs in a basedir"""
+        # get potential env path in the base_dirs
+        envs = []
+        for base_dir in base_dirs:
+            envs.extend(glob.glob(pj(os.path.expanduser(base_dir), '*', '')))
+        #self.log.info("Found the following kernels from config: %s", ", ".join(venvs))
+
+        # filter out envs which do not contain a ipython (~= ipkernel)
+        envs = [env for env in envs if self._validate_ipython_path(env)]
+
+        return envs
+
+
+    def _convert_to_envs(self, env_paths, nametemplate):
+        """Returns a dict of kernel_name -> path
+
+        kernelname is build by using the template.
+        """
+        envs = {}
+        for venv_dir in env_paths:
+            venv_name = os.path.split(venv_dir)[1]
+            kernel_name = nametemplate.format(venv_name)
+            kernel_name = kernel_name.lower()
+            if kernel_name in envs:
+                self.log.error("Duplicate env kernels: %s would both point to %s and %s. Using the first!", kernel_name, envs[kernel_name], venv_dir)
+                continue
+            if self.validate_env(kernel_name):
+                envs.update({kernel_name: venv_dir})
+            else:
+                self.log.info("Not considered env kernel (blacklisted): %s", kernel_name)
+        return envs
+
+
+    def _find_conda_envs(self):
+        """Returns conda envs as dict of name -> path"""
+        if not self.find_conda_envs:
+            return {}
+        self.log.info("Looking for conda environments...")
+        paths = self._find_conda_env_path_from_config()
+        paths.extend(self._find_conda_env_paths_from_conda())
+        paths = list(set(paths))
+
+        # can't use '/' as that results in javascript errors :-/
+        # need to use something which matches \w to get logos:
+        # https://github.com/jupyter/notebook/issues/853
+        templ = "conda_{}"
+        return self._convert_to_envs(paths, templ)
+
+
+    def _find_virtualenv_envs(self):
+        """Returns virtualenv envs as dict of name -> path"""
+        if not self.find_virtualenv_envs:
+            return {}
+        self.log.info("Looking for virtualenv environments...")
+        paths = self._find_virtualenv_env_path_from_config()
+
+        templ = "virtualenv_{}"
+        return self._convert_to_envs(paths, templ)
+
+
+    def find_envs(self):
+        """Returns for all envs as dict of name -> path"""
+
+        # This is called much too often and the conda calls are really expensive :-(
+        if hasattr(self, "_find_envs_cache"):
+            return getattr(self, "_find_envs_cache")
+
+        envs = {}
+        envs.update(self._find_conda_envs())
+        envs.update(self._find_virtualenv_envs())
+        if envs:
+            self.log.info("Found the following kernels for environments: %s", ", ".join(list(envs)))
         else:
-            search = '*/bin/ipython'
+            self.log.info("Found no kernels from environments!")
+        self._find_envs_cache = envs
+        return envs
 
-        return [os.path.join(os.path.expanduser(base_dir), search)
-                for base_dir in self.env_dirs + self.extra_env_dirs]
 
-    def find_python_paths(self):
-        # find a python executeable
-        python_dirs = {}
+    def _build_kernel_specs(self):
+        """Returns the dict of name -> kernel_spec for all environments"""
 
-        for env_path in self._get_env_paths():
-            for python_exe in glob.glob(env_path):
-                venv_dir = os.path.split(os.path.split(python_exe)[0])[0]
-                venv_name = os.path.split(venv_dir)[1]
-                if self.validate_env(venv_name):
-                    python_dirs.update({venv_name: venv_dir})
+        # This is called much too often and the conda calls are really expensive :-(
+        if hasattr(self, "_build_kernel_specs_cache"):
+            return getattr(self, "_build_kernel_specs_cache")
 
-        return python_dirs
-
-    def venv_kernel_specs(self):
-        python_dirs = self.find_python_paths()
+        venv_dirs = self.find_envs()
         kspecs = {}
-        for venv_name, venv_dir in python_dirs.items():
-            exe_name = os.path.join(venv_dir, 'bin/python')
+        if platform.system() == "Windows":
+            python_exe_name = "python.exe"
+        else:
+            python_exe_name = "python"
+
+        for venv_name, venv_dir in venv_dirs.items():
+            # conda on windows has python.exe directly in the env
+            exe_name = pj(venv_dir, python_exe_name)
+            if not os.path.exists(exe_name):
+                exe_name = pj(venv_dir, "bin", python_exe_name)
             kspec_dict =  {"argv": [exe_name,
                                     "-m",
                                     "IPython.kernel",
                                     "-f",
                                     "{connection_file}"],
-                           "display_name": "Environment ({})".format(venv_name),
+                           "language": "python",
+                           "display_name": self.display_name_template.format(venv_name),
                            "env": {}}
-
-            kspecs.update({"env_{}".format(venv_name): KernelSpec(**kspec_dict)})
+            # This should probably use self.kernel_spec_class instead of the direct class
+            kspecs.update({venv_name: KernelSpec(resource_dir=RESOURCES, **kspec_dict)})
+        self._build_kernel_specs_cache = kspecs
         return kspecs
+
+    def find_kernel_specs_for_envs(self):
+        """Returns a dict mapping kernel names to resource directories."""
+        # as the envs do not have logos (=resources) included, add in the
+        # normal ones for python
+
+        envs = self.find_envs()
+        ret = {}
+        for name in envs:
+            ret[name] = RESOURCES
+        return ret
+
 
     def find_kernel_specs(self):
         """Returns a dict mapping kernel names to resource directories."""
-        d = super(EnvironmentKernelSpecManager, self).find_kernel_specs()
+        # let real installed kernels overwrite envs with the same name:
+        # this is the same order as the get_kernel_spec way, which also prefers
+        # kernels from the jupyter dir over env kernels.
+        specs = self.find_kernel_specs_for_envs()
+        specs.update(super(EnvironmentKernelSpecManager, self).find_kernel_specs())
+        return specs
 
-        d.update(self.find_python_paths())
-        return d
+    def get_all_specs(self):
+        """Returns a dict mapping kernel names and resource directories.
+        """
+        # This is new in 4.1 -> https://github.com/jupyter/jupyter_client/pull/93
+        specs = self._build_kernel_specs()
+        specs.update(super(EnvironmentKernelSpecManager, self).get_all_specs())
+        return specs
 
     def get_kernel_spec(self, kernel_name):
         """Returns a :class:`KernelSpec` instance for the given kernel_name.
@@ -117,8 +318,9 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         try:
             return super(EnvironmentKernelSpecManager, self).get_kernel_spec(kernel_name)
         except (NoSuchKernel, FileNotFoundError):
-            venv_kernel_name = "env_{}".format(kernel_name.lower())
-            if venv_kernel_name in self.venv_kernel_specs():
-                return self.venv_kernel_specs()[venv_kernel_name]
+            venv_kernel_name = kernel_name.lower()
+            specs = self._build_kernel_specs()
+            if venv_kernel_name in specs:
+                return specs[venv_kernel_name]
             else:
                 raise NoSuchKernel(kernel_name)

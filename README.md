@@ -19,7 +19,7 @@ To enable the plugin add the following line to your notebook [config file](https
 
     c.NotebookApp.kernel_spec_manager_class = 'environment_kernels.EnvironmentKernelSpecManager'
 
-to create a config file run:
+To create a config file run:
 
     jupyter notebook --generate-config
 
@@ -27,48 +27,92 @@ or run the notebook with the following argument:
 
     --NotebookApp.kernel_spec_manager_class='environment_kernels.EnvironmentKernelSpecManager'
 
-
 ## Search Directories for Environments
 
-The plugin works by searching a set of directories for subdriectories which are
-environments with the following pattern on Linux and OS/X:
-    
-    BASE_DIR/ENV_NAME/bin/ipython
+The plugin works by getting a list of possible environments which might contain an
+ipython kernel.
 
-and on Windows::
+There are multiple ways to find possible environments:
 
-    BASE_DIR\ENV_NAME\Scripts\ipython
+* All subdirs of the base directories (default: `~/.conda/envs` for conda
+  based environments and `~/.virtualenvs`) for virtualenv based environments.
+* If the jupyter notebook is being run in the conda root environment
+  `conda.config.envs_dirs` will be imported and all subdirs of these
+  dirs will be added to the list of possible environments.
+* If the notebook server is run from inside a conda environment then the
+  `CONDA_ENV_DIR` variable will be set and will be used to find the
+  directory which contains the environments.
+* If a `conda` executeable is available, it will be queried for a list
+  of environments.
 
-The default base directories are `~/.conda/envs`, `~/.virtualenvs` and if the
-jupyter notebook is being run in the root environment `conda.config.envs_dirs` 
-will be imported added to the search path, if the notebook server is run from
-inside a conda environment then the `CONDA_ENV_DIR` variable will be set and
-the section of the path before `/env/` will be added to the search list.
-You can add extra directories to the search path by using the
-`extra_env_dirs` config:
+Each possible environment will be searched for an `ipython` executeable and
+if found, a kernel entry will be added on the fly.
 
-    c.EnvironmentKernelSpecManager.extra_env_dirs=['/opt/miniconda/envs/']
+The ipython search pattern is on Linux and OS/X:
 
-or all the automatic behavior can be overriddenby setting the `env_dirs`
-config:
+    ENV_NAME/{bin|Scripts}/ipython
 
-    c.EnvironmentKernelSpecManager.env_dirs=['/opt/miniconda/envs/']
+and on Windows:
+
+    ENV_NAME\{bin|Scripts}\ipython.exe
+
+The kernels will be named after the type (conda or virtualenv) and by the
+name of the environment directory (example: the kernel in conda environment
+`C:\miniconda\envs\tests` gets the name `conda_tests`). If there are multiple
+envs which would result in the same kernel name (e.g. when multiple base dirs
+are configured, which each contain an environment with the same name), only the
+first kernel will be used and this ommision will be mentioned in the notebook 
+console log.
+
+You can configure this behaviour in mutliple ways:
+
+You can override the default base directories by setting the following
+config values:
+
+    c.EnvironmentKernelSpecManager.virtualenv_env_dirs=['/opt/virtualenv/envs/']
+    c.EnvironmentKernelSpecManager.conda_env_dirs=['/opt/miniconda/envs/']
+
+You can also disable specific search paths:
+
+    c.EnvironmentKernelSpecManager.find_conda_envs=False
+    c.EnvironmentKernelSpecManager.find_virtualenv_envs=False
+
+The above disables both types of environments, so this will effectivly 
+disable all environment kernels.
+
+You can also disable only the conda call, which is expensive but the only reliable way
+on windows:
+
+    c.EnvironmentKernelSpecManager.use_conda_directly=False
 
 ## Limiting Environments
 
-If you want to you can also make it ignore environments with certain names:
+If you want to, you can also ignore environments with certain names:
 
-    c.EnvironmentKernelSpecManager.blacklist_envs=['testenv']
-
-or:
-
-    --EnvironmentKernelSpecManager.blacklist_envs="['testenv']"
+    c.EnvironmentKernelSpecManager.blacklist_envs=['conda_testenv']
 
 Or you can specify a whitelist of "allowed" environments with:
 
-    c.EnvironmentKernelSpecManager.whitelist_envs=['testenv']
+    c.EnvironmentKernelSpecManager.whitelist_envs=['virtualenv_testenv']
 
-or:
+## Configuring the display name
 
-    --EnvironmentKernelSpecManager.whitelist_envs="['testenv']"
+The default lists all environmental kernels as `Environment (type_name)`. This
+can be cumbersome, as these kernels are usually sorted higher than other kernels.
 
+You can change the display name via this config (you must include the
+placeholder `{}`!):
+
+    c.EnvironmentKernelSpecManager.display_name_template="~Env ({})"
+
+## Config via the commandline
+
+All config values can also be set on the commandline by using the config value as argument:
+
+As an example:
+
+    c.EnvironmentKernelSpecManager.blacklist_envs=['conda_testenv']
+
+becomes
+
+    --EnvironmentKernelSpecManager.blacklist_envs="['conda_testenv']"
