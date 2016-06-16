@@ -7,6 +7,8 @@ Copied from xonsh"""
 # - replace the xonsh environment cache with os.environ
 # - remove aliases and func handling -> we are only interested on environment variables
 # - remove xonsh special ENV thingy and "detype()"
+# - add source_bash and source_zsh
+# - Changed the default for "save" in all function definitions/parser to False to get exceptions
 
 import os
 import platform
@@ -14,8 +16,6 @@ from argparse import ArgumentParser
 import subprocess
 from tempfile import NamedTemporaryFile
 import re
-import shlex
-from warnings import warn
 import sys
 from itertools import chain
 
@@ -30,17 +30,35 @@ ON_ANACONDA = any(s in sys.version for s in {'Anaconda', 'Continuum'})
 
 ON_POSIX = (os.name == 'posix')
 
+def source_bash(args, stdin=None):
+    """Simply bash-specific wrapper around source-foreign
+
+    Returns a dict to be used as a new environment"""
+    args = list(args)
+    new_args = ['bash', '--sourcer=source']
+    new_args.extend(args)
+    return source_foreign(new_args, stdin=stdin)
+
+def source_zsh(args, stdin=None):
+    """Simply zsh-specific wrapper around source-foreign
+
+    Returns a dict to be used as a new environment"""
+    args = list(args)
+    new_args = ['zsh', '--sourcer=source']
+    new_args.extend(args)
+    return source_foreign(new_args, stdin=stdin)
+
 
 def source_cmd(args, stdin=None):
     """Simple cmd.exe-specific wrapper around source-foreign.
 
-    returns a dic to be used as a new environment
+    returns a dict to be used as a new environment
     """
     args = list(args)
     fpath = locate_binary(args[0])
     args[0] = fpath if fpath else args[0]
     if not os.path.isfile(args[0]):
-        raise RuntimeError("Command not found")
+        raise RuntimeError("Command not found: %s" % args[0])
     prevcmd = 'call '
     prevcmd += ' '.join([argvquote(arg, force=True) for arg in args])
     prevcmd = escape_windows_cmd_string(prevcmd)
@@ -239,7 +257,7 @@ def _ensure_source_foreign_parser():
     parser.add_argument('--extra-args', default=(), dest='extra_args',
                         type=(lambda s: tuple(s.split())),
                         help='extra arguments needed to run the shell')
-    parser.add_argument('-s', '--safe', type=to_bool, default=True,
+    parser.add_argument('-s', '--safe', type=to_bool, default=False,
                         help='whether the source shell should be run safely, '
                              'and not raise any errors, even if they occur.',
                         dest='safe')
@@ -269,7 +287,7 @@ def _ensure_source_foreign_parser():
 
 def foreign_shell_data(shell, interactive=True, login=False, envcmd=None,
                        aliascmd=None, extra_args=(), currenv=None,
-                       safe=True, prevcmd='', postcmd='', funcscmd=None,
+                       safe=False, prevcmd='', postcmd='', funcscmd=None,
                        sourcer=None, use_tmpfile=False, tmpfile_ext=None,
                        runcmd=None, seterrprevcmd=None, seterrpostcmd=None):
     """Extracts data from a foreign (non-xonsh) shells. Currently this gets
@@ -379,6 +397,7 @@ def foreign_shell_data(shell, interactive=True, login=False, envcmd=None,
         return None, None
     finally:
         if use_tmpfile:
+            pass
             os.remove(tmpfile.name)
     env = parse_env(s)
     return env
