@@ -19,6 +19,11 @@ import re
 import sys
 from itertools import chain
 
+try:
+    FileNotFoundError
+except NameError:
+    # py2
+    FileNotFoundError = IOError
 
 ON_DARWIN = platform.system() == 'Darwin'
 ON_LINUX = platform.system() == 'Linux'
