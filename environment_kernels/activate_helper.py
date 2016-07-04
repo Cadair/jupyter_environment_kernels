@@ -35,6 +35,8 @@ ON_ANACONDA = any(s in sys.version for s in {'Anaconda', 'Continuum'})
 
 ON_POSIX = (os.name == 'posix')
 
+ENV_SPLIT_RE = re.compile('^([^=]+)=([^=]*|[^\n]*)$',flags=re.DOTALL|re.MULTILINE)
+
 def source_bash(args, stdin=None):
     """Simply bash-specific wrapper around source-foreign
 
@@ -479,8 +481,7 @@ def parse_env(s):
     if m is None:
         return {}
     g1 = m.group(1)
-    items = [line.split('=', 1) for line in g1.splitlines() if '=' in line]
-    env = dict(items)
+    env = dict(ENV_SPLIT_RE.findall(g1))
     return env
 
 
