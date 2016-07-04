@@ -11,6 +11,7 @@ from jupyter_client.kernelspec import (KernelSpecManager, KernelSpec,
 from ipykernel.kernelspec import RESOURCES
 
 from .activate_helper import source_bash, source_zsh, source_cmd
+from .lazyobj import LazyProxyDict
 
 from traitlets import List, Unicode, Bool
 
@@ -19,7 +20,6 @@ __all__ = ['EnvironmentKernelSpecManager']
 try:
     import conda.config
     HAVE_CONDA = True
-
 except ImportError:
     HAVE_CONDA = False
 
@@ -248,7 +248,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         # https://github.com/jupyter/notebook/issues/853
         env_path = self._convert_to_envs(paths, self.conda_prefix_template)
         activate = self._get_env_vars_for_conda_env
-        envs = {name: (env_path, activate(env_path))
+        envs = {name: (env_path, activate)
                 for name, env_path in env_path.items()}
         return envs
 
@@ -262,7 +262,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         env_path = self._convert_to_envs(paths,
                                          self.virtualenv_prefix_template)
         activate = self._get_env_vars_for_virtualenv_env
-        envs = {name: (env_path, activate(env_path))
+        envs = {name: (env_path, activate)
                 for name, env_path in env_path.items()}
         return envs
 
@@ -324,7 +324,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
             python_exe_name = "python"
 
         for venv_name, venv in venv_dirs.items():
-            venv_dir, venv_env_vars = venv
+            venv_dir, activate_func = venv
             # conda on windows has python.exe directly in the env
             exe_name = os.path.join(venv_dir, python_exe_name)
             if not os.path.exists(exe_name):
@@ -333,8 +333,16 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
                                    "{connection_file}"],
                           "language": "python",
                           "display_name":
-                          self.display_name_template.format(venv_name),
-                          "env": venv_env_vars}
+                          self.display_name_template.format(venv_name)}
+
+            # the default var is needed to save the venv_dir var in the function context
+            def loader(env_dir=venv_dir):
+                return activate_func(env_dir)
+            # this constructs a proxy which only loads the real values when it is used.
+            # The result is that the env vars are only loaded (=python env is activated) when
+            # the kernel is actually used, so we get a nice speedup on startup :-)
+            kspec_dict["env"] = LazyProxyDict(loader)
+
             # This should probably use self.kernel_spec_class instead of the direct class
             kspecs.update({venv_name: KernelSpec(resource_dir=RESOURCES,
                                                  **kspec_dict)})

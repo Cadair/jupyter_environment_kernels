@@ -52,10 +52,12 @@ import platform
 if sys.version_info[0] >= 3:
     PY3 = True
     FileNotFoundError = FileNotFoundError
+    from collections.abc import MutableMapping as MutableMapping
 
 else:
     PY3 = False
     FileNotFoundError = IOError
+    from collections import MutableMapping as MutableMapping
 
 PY2 = not PY3
 
