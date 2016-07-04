@@ -10,7 +10,7 @@ from jupyter_client.kernelspec import (KernelSpecManager, KernelSpec,
                                        NoSuchKernel)
 from ipykernel.kernelspec import RESOURCES
 
-from .activate_helper import source_bash, source_zsh, source_cmd, ON_WINDOWS
+from .activate_helper import source_bash, source_zsh, source_cmd
 
 from traitlets import List, Unicode, Bool
 
@@ -23,11 +23,7 @@ try:
 except ImportError:
     HAVE_CONDA = False
 
-try:
-    FileNotFoundError
-except NameError:
-    # py2
-    FileNotFoundError = IOError
+from .utils import FileNotFoundError, ON_WINDOWS
 
 
 def _source_env_vars_from_command(args):

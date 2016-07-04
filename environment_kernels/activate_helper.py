@@ -37,30 +37,17 @@ Copied from xonsh"""
 # authors and should not be interpreted as representing official policies, either expressed
 # or implied, of the stakeholders of the xonsh project or the employers of xonsh developers.
 
+from __future__ import absolute_import
+
 import os
-import platform
 from argparse import ArgumentParser
 import subprocess
 from tempfile import NamedTemporaryFile
 import re
-import sys
 from itertools import chain
 
-try:
-    FileNotFoundError
-except NameError:
-    # py2
-    FileNotFoundError = IOError
+from .utils import FileNotFoundError, ON_WINDOWS
 
-ON_DARWIN = platform.system() == 'Darwin'
-ON_LINUX = platform.system() == 'Linux'
-ON_WINDOWS = platform.system() == 'Windows'
-
-PYTHON_VERSION_INFO = sys.version_info[:3]
-ON_ANACONDA = any(s in sys.version for s in {'Anaconda', 'Continuum'})
-
-
-ON_POSIX = (os.name == 'posix')
 
 ENV_SPLIT_RE = re.compile('^([^=]+)=([^=]*|[^\n]*)$',flags=re.DOTALL|re.MULTILINE)
 
@@ -112,7 +99,7 @@ def locate_binary(name):
 
     directories = os.environ.get('PATH').split(os.path.pathsep)
 
-    # Windows users expect t obe able to execute files in the same directory without `./`
+    # Windows users expect to be able to execute files in the same directory without `./`
     if ON_WINDOWS:
         directories = [_get_cwd()] + directories
 
