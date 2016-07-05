@@ -1,0 +1,4 @@
+include README.md
+include LICENSE.md
+include environment_kernels/logos/python/*
+include environment_kernels/logos/r/*

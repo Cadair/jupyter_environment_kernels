@@ -7,7 +7,6 @@ import os
 import glob
 
 from jupyter_client.kernelspec import KernelSpec
-from ipykernel.kernelspec import RESOURCES
 
 
 from .lazyobj import LazyProxyDict
@@ -92,8 +91,9 @@ def validate_IPykernel(venv_dir):
     except:
         # not installed? -> not useable in any case...
         return [], None, None
-
-    return [python_exe_name, "-m", "IPython.kernel", "-f", "{connection_file}"], "python", RESOURCES
+    argv = [python_exe_name, "-m", "IPython.kernel", "-f", "{connection_file}"]
+    resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "python")
+    return argv , "python", resources_dir
 
 
 def find_exe(env_dir, name):
