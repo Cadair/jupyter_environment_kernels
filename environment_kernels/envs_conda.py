@@ -3,7 +3,8 @@
 from __future__ import absolute_import
 
 from .activate_helper import source_env_vars_from_command
-from .envs_common import find_env_paths_in_basedirs, convert_to_env_data, validate_IPykernel
+from .envs_common import (find_env_paths_in_basedirs, convert_to_env_data,
+                          validate_IPykernel, validate_IRkernel)
 from .utils import FileNotFoundError
 
 
@@ -15,7 +16,7 @@ def get_conda_env_data(mgr):
     if not mgr.find_conda_envs:
         return {}
 
-    mgr.log.info("Looking for conda environments...")
+    mgr.log.info("Looking for conda environments (python)...")
 
     # find all potential env paths
     env_paths = find_env_paths_in_basedirs(mgr.conda_env_dirs)
@@ -28,7 +29,16 @@ def get_conda_env_data(mgr):
                                    activate_func=_get_env_vars_for_conda_env,
                                    name_template=mgr.conda_prefix_template,
                                    display_name_template=mgr.display_name_template,
-                                   name_prefix="py_")
+                                   name_prefix="")  # lets keep the py kernels without a prefix...
+    if mgr.find_r_envs:
+        mgr.log.info("Looking for conda environments (R)...")
+        env_data.update(convert_to_env_data(mgr=mgr,
+                                            env_paths=env_paths,
+                                            validator_func=validate_IRkernel,
+                                            activate_func=_get_env_vars_for_conda_env,
+                                            name_template=mgr.conda_prefix_template,
+                                            display_name_template=mgr.display_name_template,
+                                            name_prefix="r_"))
     return env_data
 
 

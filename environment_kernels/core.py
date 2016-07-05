@@ -85,6 +85,11 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         config=True,
         help="Probe for conda environments, including calling conda itself.")
 
+    find_r_envs = Bool(
+        True,
+        config=True,
+        help="Probe environments for R kernels (currently only conda environments).")
+
     use_conda_directly = Bool(
         True,
         config=True,

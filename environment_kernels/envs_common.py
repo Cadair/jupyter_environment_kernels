@@ -93,7 +93,30 @@ def validate_IPykernel(venv_dir):
         return [], None, None
     argv = [python_exe_name, "-m", "IPython.kernel", "-f", "{connection_file}"]
     resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "python")
-    return argv , "python", resources_dir
+    return argv, "python", resources_dir
+
+
+def validate_IRkernel(venv_dir):
+    """Validates that this env contains an IRkernel kernel and returns info to start it
+
+
+    Returns: tuple
+        (ARGV, language, resource_dir)
+    """
+    r_exe_name = find_exe(venv_dir, "r")
+    if r_exe_name is None:
+        return [], None, None
+
+    # check if this is really an ipython **kernel**
+    import subprocess
+    try:
+        subprocess.check_call([r_exe_name, '--slave', '-e', 'library(IRkernel)'])
+    except:
+        # not installed? -> not useable in any case...
+        return [], None, None
+    argv = [r_exe_name, "--slave", "-e", "IRkernel::main()", "--args", "{connection_file}"]
+    resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "r")
+    return argv, "r", resources_dir
 
 
 def find_exe(env_dir, name):
