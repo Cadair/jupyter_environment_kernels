@@ -10,25 +10,46 @@ Copied from xonsh"""
 # - add source_bash and source_zsh
 # - Changed the default for "save" in all function definitions/parser to False to get exceptions
 
+# Original license:
+# Copyright 2015-2016, the xonsh developers. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification, are
+# permitted provided that the following conditions are met:
+#
+#    1. Redistributions of source code must retain the above copyright notice, this list of
+#       conditions and the following disclaimer.
+#
+#    2. Redistributions in binary form must reproduce the above copyright notice, this list
+#       of conditions and the following disclaimer in the documentation and/or other materials
+#       provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE XONSH DEVELOPERS ``AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE XONSH DEVELOPERS OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are those of the
+# authors and should not be interpreted as representing official policies, either expressed
+# or implied, of the stakeholders of the xonsh project or the employers of xonsh developers.
+
+from __future__ import absolute_import
+
 import os
-import platform
 from argparse import ArgumentParser
 import subprocess
 from tempfile import NamedTemporaryFile
 import re
-import sys
 from itertools import chain
 
-
-ON_DARWIN = platform.system() == 'Darwin'
-ON_LINUX = platform.system() == 'Linux'
-ON_WINDOWS = platform.system() == 'Windows'
-
-PYTHON_VERSION_INFO = sys.version_info[:3]
-ON_ANACONDA = any(s in sys.version for s in {'Anaconda', 'Continuum'})
+from .utils import FileNotFoundError, ON_WINDOWS
 
 
-ON_POSIX = (os.name == 'posix')
+ENV_SPLIT_RE = re.compile('^([^=]+)=([^=]*|[^\n]*)$',flags=re.DOTALL|re.MULTILINE)
 
 def source_bash(args, stdin=None):
     """Simply bash-specific wrapper around source-foreign
@@ -78,7 +99,7 @@ def locate_binary(name):
 
     directories = os.environ.get('PATH').split(os.path.pathsep)
 
-    # Windows users expect t obe able to execute files in the same directory without `./`
+    # Windows users expect to be able to execute files in the same directory without `./`
     if ON_WINDOWS:
         directories = [_get_cwd()] + directories
 
@@ -474,8 +495,7 @@ def parse_env(s):
     if m is None:
         return {}
     g1 = m.group(1)
-    items = [line.split('=', 1) for line in g1.splitlines() if '=' in line]
-    env = dict(items)
+    env = dict(ENV_SPLIT_RE.findall(g1))
     return env
 
 
