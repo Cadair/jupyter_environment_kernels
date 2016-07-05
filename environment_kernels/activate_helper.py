@@ -51,6 +51,18 @@ from .utils import FileNotFoundError, ON_WINDOWS
 
 ENV_SPLIT_RE = re.compile('^([^=]+)=([^=]*|[^\n]*)$',flags=re.DOTALL|re.MULTILINE)
 
+
+def source_env_vars_from_command(args):
+    if ON_WINDOWS:
+        return source_cmd(args)
+    else:
+        # bash is probably installed everywhere... if not...
+        try:
+            return source_bash(args)
+        except:
+            return source_zsh(args)
+
+
 def source_bash(args, stdin=None):
     """Simply bash-specific wrapper around source-foreign
 

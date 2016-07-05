@@ -68,6 +68,10 @@ ON_WINDOWS = platform.system() == 'Windows'
 PYTHON_VERSION_INFO = sys.version_info[:3]
 ON_ANACONDA = any(s in sys.version for s in {'Anaconda', 'Continuum'})
 
-
 ON_POSIX = (os.name == 'posix')
 
+try:
+    import conda.config
+    HAVE_CONDA = True
+except ImportError:
+    HAVE_CONDA = False
