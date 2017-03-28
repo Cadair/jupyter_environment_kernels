@@ -33,8 +33,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     # Check for the CONDA_ENV_PATH variable and add it to the list if set.
     if os.environ.get('CONDA_ENV_PATH', False):
-        _default_conda_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[
-            0])
+         _default_conda_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[0])
 
     # If we are running inside the root conda env can get all the env dirs:
     if HAVE_CONDA:
@@ -102,6 +101,17 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     def __init__(self, *args, **kwargs):
         super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
         self.log.info("Using EnvironmentKernelSpecManager...")
+        try:
+            from tornado.ioloop import PeriodicCallback
+            # every 5 minutes
+            updater = PeriodicCallback(callback=self._update_env_data, callback_time=1000 * 60 * 5)
+            updater.start()
+            if not updater.is_running():
+                raise Exception()
+            self._periodic_updater = updater
+            self.log.info("Started periodic updates of the kernel list (every 5 minutes).")
+        except:
+            self.log.exception("NOT periodically updating the kernel list.")
 
     def validate_env(self, envname):
         """
@@ -121,6 +131,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         else:
             return True
 
+    def _update_env_data(self):
+        self.log.info("Starting periodic scan of virtual environments...")
+        self._get_env_data(reload=True)
+        self.log.debug("done...")
 
     def _get_env_data(self, reload=False):
         """Get the data about the available environments.
@@ -129,7 +143,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         """
 
         # This is called much too often and finding-process is really expensive :-(
-        if hasattr(self, "_env_data_cache"):
+        if not reload and hasattr(self, "_env_data_cache"):
             return getattr(self, "_env_data_cache")
 
         env_data = {}
@@ -138,11 +152,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
         env_data = {name: env_data[name] for name in env_data if self.validate_env(name)}
         self.log.info("Found the following kernels in environments: %s",
-                          ", ".join(list(env_data)))
+                      ", ".join(list(env_data)))
 
         self._env_data_cache = env_data
         return env_data
-
 
     def find_kernel_specs_for_envs(self):
         """Returns a dict mapping kernel names to resource directories."""
