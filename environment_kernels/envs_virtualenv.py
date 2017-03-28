@@ -37,9 +37,11 @@ def _get_env_vars_for_virtualenv_env(mgr, env_path):
     if ON_WINDOWS:
         args = [os.path.join(env_path, "Shell", "activate")]
     else:
-        args = [os.path.join(env_path, "bin", "activate")]
+        args = ['source', os.path.join(env_path, "bin", "activate")]
     try:
-        return source_env_vars_from_command(args)
+        envs = source_env_vars_from_command(args)
+        #mgr.log.debug("Environment variables: %s", envs)
+        return envs
     except:
         # as a fallback, don't activate...
         mgr.log.exception(
