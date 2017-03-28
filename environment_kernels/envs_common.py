@@ -6,10 +6,8 @@ import platform
 import os
 import glob
 
-from jupyter_client.kernelspec import KernelSpec
+from .env_kernelspec import EnvironmentLoadingKernelSpec
 
-
-from .lazyobj import LazyProxyDict
 
 def find_env_paths_in_basedirs(base_dirs):
     """Returns all potential envs in a basedir"""
@@ -21,6 +19,7 @@ def find_env_paths_in_basedirs(base_dirs):
     # self.log.info("Found the following kernels from config: %s", ", ".join(venvs))
 
     return env_path
+
 
 def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
                         name_template, display_name_template, name_prefix):
@@ -51,15 +50,13 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
 
         # the default vars are needed to save the vars in the function context
         def loader(env_dir=venv_dir, activate_func=activate_func, mgr=mgr):
-            return activate_func(mgr, env_dir)
+            mgr.log.debug("Loading env data for %s" % env_dir)
+            res = activate_func(mgr, env_dir)
+            #mgr.log.info("PATH: %s" % res['PATH'])
+            return res
 
-        # this constructs a proxy which only loads the real values when it is used.
-        # The result is that the env vars are only loaded (= env is activated) when
-        # the kernel is actually used, so we get a nice speedup on startup :-)
-        kspec_dict["env"] = LazyProxyDict(loader)
-
-        # This should probably use self.kernel_spec_class instead of the direct class
-        env_data.update({kernel_name: (resource_dir, KernelSpec(**kspec_dict))})
+        kspec = EnvironmentLoadingKernelSpec(loader, **kspec_dict)
+        env_data.update({kernel_name: (resource_dir, kspec)})
     return env_data
 
 
@@ -134,5 +131,3 @@ def find_exe(env_dir, name):
             if not os.path.exists(exe_name):
                 return None
     return exe_name
-
-
