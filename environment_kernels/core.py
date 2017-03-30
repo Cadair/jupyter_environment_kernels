@@ -5,7 +5,7 @@ import os
 import os.path
 
 from jupyter_client.kernelspec import (KernelSpecManager, NoSuchKernel)
-from traitlets import List, Unicode, Bool
+from traitlets import List, Unicode, Bool, Int
 
 from .envs_conda import get_conda_env_data
 from .envs_virtualenv import get_virtualenv_env_data
@@ -94,6 +94,11 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         config=True,
         help="Probe for conda environments by calling conda itself. Only relevant if find_conda_envs is True.")
 
+    refresh_interval = Int(
+        3,
+        config=True,
+        help="Interval (in minutes) to refresh the list of environment kernels. Setting it to '0' disables the refresh.")
+
     find_virtualenv_envs = Bool(True,
                                 config=True,
                                 help="Probe for virtualenv environments.")
@@ -101,17 +106,22 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     def __init__(self, *args, **kwargs):
         super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
         self.log.info("Using EnvironmentKernelSpecManager...")
-        try:
-            from tornado.ioloop import PeriodicCallback
-            # every 5 minutes
-            updater = PeriodicCallback(callback=self._update_env_data, callback_time=1000 * 60 * 5)
-            updater.start()
-            if not updater.is_running():
-                raise Exception()
-            self._periodic_updater = updater
-            self.log.info("Started periodic updates of the kernel list (every 5 minutes).")
-        except:
-            self.log.exception("NOT periodically updating the kernel list.")
+        if self.refresh_interval > 0:
+            try:
+                from tornado.ioloop import PeriodicCallback, IOLoop
+                # Initial loading NOW
+                IOLoop.current().call_later(0, callback=self._update_env_data)
+                # Later updates
+                updater = PeriodicCallback(callback=self._update_env_data, callback_time=1000 * 60 * self.refresh_interval)
+                updater.start()
+                if not updater.is_running():
+                    raise Exception()
+                self._periodic_updater = updater
+                self.log.info("Started periodic updates of the kernel list (every %s minutes).", self.refresh_interval)
+            except:
+                self.log.exception("Error while trying to enable periodic updates of the kernel list.")
+        else:
+            self.log.info("Periodical updates the kernel list are DISABLED.")
 
     def validate_env(self, envname):
         """
