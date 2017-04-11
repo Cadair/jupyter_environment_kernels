@@ -5,7 +5,7 @@ import os
 import os.path
 
 from jupyter_client.kernelspec import (KernelSpecManager, NoSuchKernel)
-from traitlets import List, Unicode, Bool
+from traitlets import List, Unicode, Bool, Int
 
 from .envs_conda import get_conda_env_data
 from .envs_virtualenv import get_virtualenv_env_data
@@ -33,8 +33,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
     # Check for the CONDA_ENV_PATH variable and add it to the list if set.
     if os.environ.get('CONDA_ENV_PATH', False):
-        _default_conda_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[
-            0])
+         _default_conda_dirs.append(os.environ['CONDA_ENV_PATH'].split('envs')[0])
 
     # If we are running inside the root conda env can get all the env dirs:
     if HAVE_CONDA:
@@ -95,6 +94,11 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         config=True,
         help="Probe for conda environments by calling conda itself. Only relevant if find_conda_envs is True.")
 
+    refresh_interval = Int(
+        3,
+        config=True,
+        help="Interval (in minutes) to refresh the list of environment kernels. Setting it to '0' disables the refresh.")
+
     find_virtualenv_envs = Bool(True,
                                 config=True,
                                 help="Probe for virtualenv environments.")
@@ -102,6 +106,22 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
     def __init__(self, *args, **kwargs):
         super(EnvironmentKernelSpecManager, self).__init__(*args, **kwargs)
         self.log.info("Using EnvironmentKernelSpecManager...")
+        if self.refresh_interval > 0:
+            try:
+                from tornado.ioloop import PeriodicCallback, IOLoop
+                # Initial loading NOW
+                IOLoop.current().call_later(0, callback=self._update_env_data)
+                # Later updates
+                updater = PeriodicCallback(callback=self._update_env_data, callback_time=1000 * 60 * self.refresh_interval)
+                updater.start()
+                if not updater.is_running():
+                    raise Exception()
+                self._periodic_updater = updater
+                self.log.info("Started periodic updates of the kernel list (every %s minutes).", self.refresh_interval)
+            except:
+                self.log.exception("Error while trying to enable periodic updates of the kernel list.")
+        else:
+            self.log.info("Periodical updates the kernel list are DISABLED.")
 
     def validate_env(self, envname):
         """
@@ -121,6 +141,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         else:
             return True
 
+    def _update_env_data(self):
+        self.log.info("Starting periodic scan of virtual environments...")
+        self._get_env_data(reload=True)
+        self.log.debug("done...")
 
     def _get_env_data(self, reload=False):
         """Get the data about the available environments.
@@ -129,7 +153,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
         """
 
         # This is called much too often and finding-process is really expensive :-(
-        if hasattr(self, "_env_data_cache"):
+        if not reload and hasattr(self, "_env_data_cache"):
             return getattr(self, "_env_data_cache")
 
         env_data = {}
@@ -138,11 +162,10 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
 
         env_data = {name: env_data[name] for name in env_data if self.validate_env(name)}
         self.log.info("Found the following kernels in environments: %s",
-                          ", ".join(list(env_data)))
+                      ", ".join(list(env_data)))
 
         self._env_data_cache = env_data
         return env_data
-
 
     def find_kernel_specs_for_envs(self):
         """Returns a dict mapping kernel names to resource directories."""

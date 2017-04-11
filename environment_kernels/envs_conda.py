@@ -5,8 +5,7 @@ from __future__ import absolute_import
 from .activate_helper import source_env_vars_from_command
 from .envs_common import (find_env_paths_in_basedirs, convert_to_env_data,
                           validate_IPykernel, validate_IRkernel)
-from .utils import FileNotFoundError
-
+from .utils import FileNotFoundError, ON_WINDOWS
 
 def get_conda_env_data(mgr):
     """Finds kernel specs from conda environments
@@ -43,9 +42,15 @@ def get_conda_env_data(mgr):
 
 
 def _get_env_vars_for_conda_env(mgr, env_path):
-    args = ["activate", env_path]
+    if ON_WINDOWS:
+        args = ['activate', env_path]
+    else:
+        args = ['source', 'activate', env_path]
+
     try:
-        return source_env_vars_from_command(args)
+        envs = source_env_vars_from_command(args)
+        #mgr.log.debug("PATH: %s", envs['PATH'])
+        return envs
     except:
         # as a fallback, don't activate...
         mgr.log.exception(
