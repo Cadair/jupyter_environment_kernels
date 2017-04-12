@@ -15,13 +15,14 @@ def get_conda_env_data(mgr):
     if not mgr.find_conda_envs:
         return {}
 
-    mgr.log.info("Looking for conda environments (python)...")
+    mgr.log.debug("Looking for conda environments in %s...", mgr.conda_env_dirs)
 
     # find all potential env paths
     env_paths = find_env_paths_in_basedirs(mgr.conda_env_dirs)
     env_paths.extend(_find_conda_env_paths_from_conda(mgr))
     env_paths = list(set(env_paths)) # remove duplicates
 
+    mgr.log.debug("Scanning conda environments for python kernels...")
     env_data = convert_to_env_data(mgr=mgr,
                                    env_paths=env_paths,
                                    validator_func=validate_IPykernel,
@@ -30,7 +31,7 @@ def get_conda_env_data(mgr):
                                    display_name_template=mgr.display_name_template,
                                    name_prefix="")  # lets keep the py kernels without a prefix...
     if mgr.find_r_envs:
-        mgr.log.info("Looking for conda environments (R)...")
+        mgr.log.debug("Scanning conda environments for R kernels...")
         env_data.update(convert_to_env_data(mgr=mgr,
                                             env_paths=env_paths,
                                             validator_func=validate_IRkernel,
@@ -66,7 +67,7 @@ def _find_conda_env_paths_from_conda(mgr):
     # this is expensive, so make it configureable...
     if not mgr.use_conda_directly:
         return []
-    mgr.log.info("Looking for conda environments by calling conda directly...")
+    mgr.log.debug("Looking for conda environments by calling conda directly...")
     import subprocess
     import json
     try:

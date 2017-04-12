@@ -33,9 +33,9 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
         kernel_name = name_template.format(name_prefix + venv_name)
         kernel_name = kernel_name.lower()
         if kernel_name in env_data:
-            mgr.log.error(
-                "Duplicate env kernels: %s would both point to %s and %s. Using the first!",
-                kernel_name, env_data[kernel_name], venv_dir)
+            mgr.log.debug(
+                "Found duplicate env kernel: %s, which would again point to %s. Using the first!",
+                kernel_name, venv_dir)
             continue
         argv, language, resource_dir = validator_func(venv_dir)
         if not argv:
@@ -52,7 +52,7 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
         def loader(env_dir=venv_dir, activate_func=activate_func, mgr=mgr):
             mgr.log.debug("Loading env data for %s" % env_dir)
             res = activate_func(mgr, env_dir)
-            #mgr.log.info("PATH: %s" % res['PATH'])
+            # mgr.log.info("PATH: %s" % res['PATH'])
             return res
 
         kspec = EnvironmentLoadingKernelSpec(loader, **kspec_dict)
@@ -100,19 +100,24 @@ def validate_IRkernel(venv_dir):
     Returns: tuple
         (ARGV, language, resource_dir)
     """
-    r_exe_name = find_exe(venv_dir, "r")
+    r_exe_name = find_exe(venv_dir, "R")
     if r_exe_name is None:
         return [], None, None
 
-    # check if this is really an ipython **kernel**
+    # check if this is really an IRkernel **kernel**
     import subprocess
+    ressources_dir = None
     try:
-        subprocess.check_call([r_exe_name, '--slave', '-e', 'library(IRkernel)'])
+        print_resources = 'cat(as.character(system.file("kernelspec", package = "IRkernel")))'
+        resources_dir_bytes = subprocess.check_output([r_exe_name, '--slave', '-e', print_resources])
+        resources_dir = resources_dir_bytes.decode(errors='ignore')
     except:
         # not installed? -> not useable in any case...
         return [], None, None
     argv = [r_exe_name, "--slave", "-e", "IRkernel::main()", "--args", "{connection_file}"]
-    resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "r")
+    if not os.path.exists(resources_dir.strip()):
+        # Fallback to our own log, but don't get the nice js goodies...
+        resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "r")
     return argv, "r", resources_dir
 
 
