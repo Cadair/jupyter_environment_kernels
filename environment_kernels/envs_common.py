@@ -33,9 +33,9 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
         kernel_name = name_template.format(name_prefix + venv_name)
         kernel_name = kernel_name.lower()
         if kernel_name in env_data:
-            mgr.log.error(
-                "Duplicate env kernels: %s would both point to %s and %s. Using the first!",
-                kernel_name, env_data[kernel_name], venv_dir)
+            mgr.log.debug(
+                "Found duplicate env kernel: %s, which would again point to %s. Using the first!",
+                kernel_name, venv_dir)
             continue
         argv, language, resource_dir = validator_func(venv_dir)
         if not argv:
@@ -52,7 +52,7 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
         def loader(env_dir=venv_dir, activate_func=activate_func, mgr=mgr):
             mgr.log.debug("Loading env data for %s" % env_dir)
             res = activate_func(mgr, env_dir)
-            #mgr.log.info("PATH: %s" % res['PATH'])
+            # mgr.log.info("PATH: %s" % res['PATH'])
             return res
 
         kspec = EnvironmentLoadingKernelSpec(loader, **kspec_dict)
