@@ -9,9 +9,8 @@ setup(
     license="BSD",
     packages=['environment_kernels'],
     include_package_data=True,
-    version=1.0,
+    version=1.1,
     classifiers=[
-        "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
         "License :: OSI Approved :: BSD License",
     ],
