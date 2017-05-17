@@ -166,7 +166,7 @@ class EnvironmentKernelSpecManager(KernelSpecManager):
             env_data.update(supplyer(self))
 
         env_data = {name: env_data[name] for name in env_data if self.validate_env(name)}
-        new_kernels = env_data.keys() - self._env_data_cache.keys()
+        new_kernels = [env for env in list(env_data.keys()) if env not in list(self._env_data_cache.keys())]
         if new_kernels:
             self.log.info("Found new kernels in environments: %s", ", ".join(new_kernels))
 
