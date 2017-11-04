@@ -28,10 +28,10 @@ def get_virtualenv_env_data(mgr):
                                    env_paths=env_paths,
                                    validator_func=validate_IPykernel,
                                    activate_func=_get_env_vars_for_virtualenv_env,
-                                   name_template=mgr.conda_prefix_template,
+                                   name_template=mgr.virtualenv_prefix_template,
                                    display_name_template=mgr.display_name_template,
-                                   name_prefix="")  # virtualenv has only python, so no need for a
-    # prefix
+                                   # virtualenv has only python, so no need for a prefix
+                                   name_prefix="")
     return env_data
 
 
