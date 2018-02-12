@@ -9,7 +9,7 @@ setup(
     license="BSD",
     packages=['environment_kernels'],
     include_package_data=True,
-    version=1.1,
+    version="1.1.1",
     classifiers=[
         "Topic :: Utilities",
         "License :: OSI Approved :: BSD License",
