@@ -9,9 +9,17 @@ setup(
     license="BSD",
     packages=['environment_kernels'],
     include_package_data=True,
-    version="1.1.1",
+    version="1.1.99",
     classifiers=[
         "Topic :: Utilities",
         "License :: OSI Approved :: BSD License",
     ],
+
+    entry_points={
+        'jupyter_client.kernel_providers': [
+            'conda = environment_kernels.env_kernel_provider:CondaEnvironmentKernelProvider',
+            'virtualenv = environment_kernels.env_kernel_provider:VirtualenvEnvironmentKernelProvider',
+        ]
+    },
+
 )
