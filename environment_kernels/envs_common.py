@@ -8,6 +8,7 @@ import glob
 
 from .env_kernelspec import EnvironmentLoadingKernelSpec
 
+JLAB_MINVERSION_3 = None
 
 def find_env_paths_in_basedirs(base_dirs):
     """Returns all potential envs in a basedir"""
@@ -37,7 +38,7 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
                 "Found duplicate env kernel: %s, which would again point to %s. Using the first!",
                 kernel_name, venv_dir)
             continue
-        argv, language, resource_dir = validator_func(venv_dir)
+        argv, language, resource_dir, metadata = validator_func(venv_dir)
         if not argv:
             # probably does not contain the kernel type (e.g. not R or python or does not contain
             # the kernel code itself)
@@ -47,6 +48,8 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
                       "display_name": display_name,
                       "resource_dir": resource_dir
                       }
+        if metadata:
+            kspec_dict["metadata"] = metadata
 
         # the default vars are needed to save the vars in the function context
         def loader(env_dir=venv_dir, activate_func=activate_func, mgr=mgr):
@@ -73,25 +76,30 @@ def validate_IPykernel(venv_dir):
     if python_exe_name is None:
         python_exe_name = find_exe(venv_dir, "python3")
     if python_exe_name is None:
-        return [], None, None
+        return [], None, None, None
 
     # Make some checks for ipython first, because calling the import is expensive
     if find_exe(venv_dir, "ipython") is None:
         if find_exe(venv_dir, "ipython2") is None:
             if find_exe(venv_dir, "ipython3") is None:
-                return [], None, None
+                return [], None, None, None
 
     # check if this is really an ipython **kernel**
     import subprocess
     try:
-        subprocess.check_call([python_exe_name, '-c', '"import ipykernel"'])
+        subprocess.check_call([python_exe_name, '-c', 'import ipykernel'], stderr=subprocess.DEVNULL)
     except:
         # not installed? -> not useable in any case...
-        return [], None, None
+        return [], None, None, None
+
     argv = [python_exe_name, "-m", "ipykernel", "-f", "{connection_file}"]
     resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "python")
-    return argv, "python", resources_dir
 
+    if is_jlab_minversion_3() and is_ipykernel_minversion_6(python_exe_name):
+        #print(f"{python_exe_name} supports debugger")
+        return argv, "python", resources_dir, {"debugger": True}
+    else:
+        return argv, "python", resources_dir, None
 
 def validate_IRkernel(venv_dir):
     """Validates that this env contains an IRkernel kernel and returns info to start it
@@ -136,3 +144,32 @@ def find_exe(env_dir, name):
             if not os.path.exists(exe_name):
                 return None
     return exe_name
+
+
+def is_ipykernel_minversion_6(python_exe_name):
+    import subprocess
+    try:
+        subprocess.check_call([python_exe_name, '-c', '''
+import sys
+import ipykernel
+if int(ipykernel.__version__.split('.', maxsplit=1)[0]) >= 6:
+    sys.exit(0)
+sys.exit(-1)
+'''
+        ], stderr=subprocess.DEVNULL)
+        return True
+    except Exception as e:
+        return False
+
+
+def is_jlab_minversion_3():
+    global JLAB_MINVERSION_3
+    if JLAB_MINVERSION_3 is not None:
+        return JLAB_MINVERSION_3
+
+    try:
+        import jupyterlab
+        JLAB_MINVERSION_3 = int(jupyterlab.__version__.split('.', maxsplit=1)[0]) >= 3
+    except ModuleNotFoundError:
+        JLAB_MINVERSION_3 = False
+    return JLAB_MINVERSION_3
