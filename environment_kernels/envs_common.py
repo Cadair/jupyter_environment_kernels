@@ -46,10 +46,9 @@ def convert_to_env_data(mgr, env_paths, validator_func, activate_func,
         display_name = display_name_template.format(kernel_name)
         kspec_dict = {"argv": argv, "language": language,
                       "display_name": display_name,
-                      "resource_dir": resource_dir
+                      "resource_dir": resource_dir,
+                      "metadata": metadata
                       }
-        if metadata:
-            kspec_dict["metadata"] = metadata
 
         # the default vars are needed to save the vars in the function context
         def loader(env_dir=venv_dir, activate_func=activate_func, mgr=mgr):
@@ -76,13 +75,13 @@ def validate_IPykernel(venv_dir):
     if python_exe_name is None:
         python_exe_name = find_exe(venv_dir, "python3")
     if python_exe_name is None:
-        return [], None, None, None
+        return [], None, None, {}
 
     # Make some checks for ipython first, because calling the import is expensive
     if find_exe(venv_dir, "ipython") is None:
         if find_exe(venv_dir, "ipython2") is None:
             if find_exe(venv_dir, "ipython3") is None:
-                return [], None, None, None
+                return [], None, None, {}
 
     # check if this is really an ipython **kernel**
     import subprocess
@@ -90,16 +89,17 @@ def validate_IPykernel(venv_dir):
         subprocess.check_call([python_exe_name, '-c', 'import ipykernel'], stderr=subprocess.DEVNULL)
     except:
         # not installed? -> not useable in any case...
-        return [], None, None, None
+        return [], None, None, {}
 
     argv = [python_exe_name, "-m", "ipykernel", "-f", "{connection_file}"]
     resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "python")
 
+    metadata = {}
     if is_jlab_minversion_3() and is_ipykernel_minversion_6(python_exe_name):
         #print(f"{python_exe_name} supports debugger")
-        return argv, "python", resources_dir, {"debugger": True}
-    else:
-        return argv, "python", resources_dir, None
+        metadata["debugger"] = True
+    return argv, "python", resources_dir, metadata
+
 
 def validate_IRkernel(venv_dir):
     """Validates that this env contains an IRkernel kernel and returns info to start it
