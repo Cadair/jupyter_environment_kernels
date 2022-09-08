@@ -106,11 +106,11 @@ def validate_IRkernel(venv_dir):
 
 
     Returns: tuple
-        (ARGV, language, resource_dir)
+        (ARGV, language, resource_dir, metadata)
     """
     r_exe_name = find_exe(venv_dir, "R")
     if r_exe_name is None:
-        return [], None, None
+        return [], None, None, None
 
     # check if this is really an IRkernel **kernel**
     import subprocess
@@ -121,12 +121,12 @@ def validate_IRkernel(venv_dir):
         resources_dir = resources_dir_bytes.decode(errors='ignore')
     except:
         # not installed? -> not useable in any case...
-        return [], None, None
+        return [], None, None, None
     argv = [r_exe_name, "--slave", "-e", "IRkernel::main()", "--args", "{connection_file}"]
     if not os.path.exists(resources_dir.strip()):
         # Fallback to our own log, but don't get the nice js goodies...
         resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos", "r")
-    return argv, "r", resources_dir
+    return argv, "r", resources_dir, dict()
 
 
 def find_exe(env_dir, name):
