@@ -96,7 +96,6 @@ def validate_IPykernel(venv_dir):
 
     metadata = {}
     if is_jlab_minversion_3() and is_ipykernel_minversion_6(python_exe_name):
-        #print(f"{python_exe_name} supports debugger")
         metadata["debugger"] = True
     return argv, "python", resources_dir, metadata
 
