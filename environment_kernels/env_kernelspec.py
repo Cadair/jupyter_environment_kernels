@@ -34,6 +34,7 @@ class EnvironmentLoadingKernelSpec(KernelSpec):
                  #env=self.env,
                  display_name=self.display_name,
                  language=self.language,
+                 metadata=self.metadata,
                 )
 
         return d
